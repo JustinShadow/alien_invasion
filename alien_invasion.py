@@ -9,6 +9,7 @@ from bullet import Bullet
 from alien import Alien
 from game_stats import GameStats
 from button import Button
+from scoreboard import Scoreboard
 
 
 class AlienInvasion:
@@ -33,6 +34,7 @@ class AlienInvasion:
         self.game_active = False
         # 创建开始按钮
         self.play_button = Button(self, '开始游戏')
+        self.scoreboard = Scoreboard(self)
 
     def run_game(self):
         """开始游戏的主循环"""
@@ -80,6 +82,11 @@ class AlienInvasion:
             # 还原游戏设置及统计信息
             self.settings.initialize_dynamic_settings()
             self.stats.reset_stats()
+            self.scoreboard.prep_score()
+            self.stats.level = 1
+            self.scoreboard.prep_level()
+            self.scoreboard.prep_ship()
+
             self.game_active = True
 
             self.bullets.empty()
@@ -106,6 +113,7 @@ class AlienInvasion:
 
         self.ship.blitme()
         self.aliens.draw(self.screen)
+        self.scoreboard.show_score()
 
         # 如果游戏处于非活跃状态，就绘制play按钮
         if not self.game_active:
@@ -144,11 +152,19 @@ class AlienInvasion:
         # 如果击中，删除对应的子弹和外星人
         collisions = pygame.sprite.groupcollide(self.bullets, self.aliens, True, True)
 
+        if collisions:
+            for aliens in collisions.values():
+                self.stats.score += self.settings.alien_points * len(aliens)
+                self.scoreboard.prep_score()
+                self.scoreboard.check_high_score()
+
         # 如果外形舰队被消灭完，则清空所有子弹，生成新的外星舰队
         if not self.aliens:
             self.bullets.empty()
             self._create_fleet()
             self.settings.increase_speed()
+            self.stats.level += 1
+            self.scoreboard.prep_level()
 
     def _create_fleet(self):
         """创建一个外星舰队"""
@@ -189,6 +205,7 @@ class AlienInvasion:
         if self.stats.ships_left > 1:
             # 发生碰撞后，飞船数量减1
             self.stats.ships_left -= 1
+            self.scoreboard.prep_ship()
             # 清空外星人列表和子弹列表
             self.aliens.empty()
             self.bullets.empty()
